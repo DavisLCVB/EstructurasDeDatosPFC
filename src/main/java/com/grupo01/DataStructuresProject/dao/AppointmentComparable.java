@@ -2,21 +2,30 @@ package com.grupo01.DataStructuresProject.dao;
 
 import com.grupo01.DataStructuresProject.datastructures.Comparable;
 import com.grupo01.DataStructuresProject.models.Appointment;
+import lombok.*;
+import org.springframework.data.mongodb.core.mapping.Document;
 
-public class AppointmentComparable extends Appointment implements Comparable<AppointmentComparable> {
+@ToString
+@EqualsAndHashCode
+@AllArgsConstructor
+@Document
+@Getter
+public class AppointmentComparable implements Comparable<AppointmentComparable> {
+    private Appointment appointment;
+
     @Override
     public boolean lowerThan(AppointmentComparable other) {
-        return this.getDate().getEnd().isBefore(other.getDate().getStart());
+        return this.appointment.getDate().getEnd().isBefore(other.appointment.getDate().getStart());
     }
 
     @Override
     public boolean greaterThan(AppointmentComparable other) {
-        return this.getDate().getStart().isAfter(other.getDate().getEnd());
+        return this.appointment.getDate().getStart().isAfter(other.appointment.getDate().getEnd());
     }
 
     @Override
     public boolean equalTo(AppointmentComparable other) {
-        return this.getDate().getStart().isEqual(other.getDate().getStart()) && this.getDate().getEnd().isEqual(other.getDate().getEnd());
+        return this.appointment.getDate().getStart().isEqual(other.appointment.getDate().getStart()) && this.appointment.getDate().getEnd().isEqual(other.appointment.getDate().getEnd());
     }
 
     @Override

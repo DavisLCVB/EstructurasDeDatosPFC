@@ -3,6 +3,8 @@ package com.grupo01.DataStructuresProject.datastructures.linkedlist;
 import com.grupo01.DataStructuresProject.datastructures.Comparable;
 import lombok.*;
 
+import java.util.function.Consumer;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -57,5 +59,13 @@ public class SortedLinkedList<T extends Comparable<T>> {
 
     public boolean isEmpty() {
         return head == null;
+    }
+
+    public void forEach(Consumer<T> consumer) {
+        LLNode<T> current = head;
+        while (current != null) {
+            consumer.accept(current.getData());
+            current = current.getNext();
+        }
     }
 }
