@@ -2,7 +2,10 @@ package com.grupo01.DataStructuresProject.dao;
 
 import com.grupo01.DataStructuresProject.datastructures.Comparable;
 import com.grupo01.DataStructuresProject.models.Appointment;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 @ToString

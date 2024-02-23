@@ -28,6 +28,7 @@ public class AppointmentController {
     @PostMapping(value = "/save")
     public Mono<Appointment> save(@RequestBody Appointment appointment) {
         appointment.setId(idGenerator.generateAppointmentID());
+        Mono<Appointment> data = appointmentDAOImp.save(appointment);
         return appointmentDAOImp.save(appointment);
     }
 
