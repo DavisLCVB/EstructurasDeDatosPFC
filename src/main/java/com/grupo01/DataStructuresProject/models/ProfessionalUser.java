@@ -2,6 +2,7 @@ package com.grupo01.DataStructuresProject.models;
 
 import com.grupo01.DataStructuresProject.utils.Identify;
 import com.grupo01.DataStructuresProject.utils.Schedule;
+import com.grupo01.DataStructuresProject.utils.ScheduleFunc;
 import lombok.*;
 import org.springframework.data.mongodb.core.mapping.Document;
 

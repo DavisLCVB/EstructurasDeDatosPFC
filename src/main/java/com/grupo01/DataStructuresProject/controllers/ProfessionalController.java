@@ -4,16 +4,14 @@ import com.grupo01.DataStructuresProject.dao.AppointmentDAOImp;
 import com.grupo01.DataStructuresProject.dao.ProfessionalDAOImp;
 import com.grupo01.DataStructuresProject.models.ProfessionalUser;
 import com.grupo01.DataStructuresProject.service.IDGenerator;
-import com.grupo01.DataStructuresProject.utils.AppointmentStatus;
-import com.grupo01.DataStructuresProject.utils.DateTimeLapse;
-import com.grupo01.DataStructuresProject.utils.Schedule;
-import com.grupo01.DataStructuresProject.utils.TimeLapse;
+import com.grupo01.DataStructuresProject.utils.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.DayOfWeek;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,51 +38,31 @@ public class ProfessionalController {
 
     @PostMapping(value = "/save")
     public Mono<ProfessionalUser> save(@RequestBody ProfessionalUser professional) {
-
         professional.setId(idGenerator.generateProfessionalID());
-
-        Mono<ProfessionalUser> savedProfessional = professionalDAOImp.save(professional);
-
-        //Solamente Prueba por consola
-        savedProfessional.subscribe(saved -> {
-            System.out.println("Profesional guardado exitosamente:");
-            System.out.println("ID: " + saved.getId());
-            System.out.println("Nombre: " + saved.getFirstName());
-            System.out.println("Apellido " + saved.getLastName());
-            System.out.println("Horarios disponibles :" + saved.getAvailableHours());
-            /*
-            LocalTime horaInicio = saved.getAvailableHours().getMonday().getFirst().getStart();
-            LocalTime horafin = saved.getAvailableHours().getMonday().getFirst().getEnd();
-            Duration duracionHorariodisponible = Duration.between(horaInicio, horafin);
-            */
-
-        });
-        return savedProfessional;
+        return professionalDAOImp.save(professional);
     }
 
-    public Mono<HashMap<String, Schedule>> getAvailableScheduleProfessionale(String idArea) {
-        return professionalDAOImp.findAllByIdArea(idArea)
-                .flatMap(professionalUser -> {
-                    Schedule schedule = professionalUser.getAvailableHours();
-                    return appointmentDAOImp.findAllByIdProfessional(professionalUser.getId())
-                            .filter(appointment -> appointment.getStatus() == AppointmentStatus.PENDING)
-                            .doOnNext(appointment -> eliminarIntervalo(schedule, appointment.getDate().getStart().getDayOfWeek(), appointment.getDate()))
-                            .then(Mono.just(schedule))
-                            .map(sch -> Map.of(professionalUser.getId(), sch));
-                })
-                .collect(HashMap<String, Schedule>::new, HashMap::putAll);
+    public Mono<HashMap<String, ScheduleDate>> getAvailableScheduleProfessionals(String idArea, LocalDateTime lastMonday) {
+        Flux<ProfessionalUser> professionals = professionalDAOImp.findAllByIdArea(idArea);
+        return professionals.flatMap(p -> {
+            var app = appointmentDAOImp.findAllByIdProfessional(p.getId());
+            ScheduleDate schedule = new ScheduleDate();
+            return app.filter(a -> a.getStatus().equals(AppointmentStatus.PENDING))
+                    .filter(a -> a.getDate().getEnd().isAfter(LocalDateTime.now()) && a.getDate().getStart().isBefore(lastMonday))
+                    .doOnNext(a -> deleteLapse(p.getAvailableHours(), schedule, a.getDate().getStart().getDayOfWeek(), a.getDate()))
+                    .then(Mono.just(Map.entry(p.getId(), schedule)));
+        }).collect(HashMap::new, (map, mapEntry) -> map.put(mapEntry.getKey(), mapEntry.getValue()));
     }
 
-    private void eliminarIntervalo(Schedule cronograma, DayOfWeek dia, DateTimeLapse intervaloCita) {
+    private void deleteLapse(ScheduleFunc<TimeLapse> professionalSchedule, ScheduleFunc<DateTimeLapse> dest, DayOfWeek dia, DateTimeLapse intervaloCita) {
+        List<TimeLapse> dayLapses = obtenerListaDia(professionalSchedule, dia);
 
-        List<TimeLapse> lapsosDia = obtenerListaDia(cronograma, dia);
+        List<TimeLapse> lapsosActualizados = actualizarIntervalosDespuesDeCita(dayLapses, intervaloCita);
 
-        List<TimeLapse> lapsosActualizados = actualizarIntervalosDespuesDeCita(lapsosDia, intervaloCita);
-
-        asignarListaDia(cronograma, dia, lapsosActualizados);
+        // asignarListaDia(professionalSchedule, dia, lapsosActualizados);
     }
 
-    private List<TimeLapse> obtenerListaDia(Schedule cronograma, DayOfWeek dia) {
+    private List<TimeLapse> obtenerListaDia(ScheduleFunc cronograma, DayOfWeek dia) {
         return switch (dia) {
             case MONDAY -> cronograma.getMonday();
             case TUESDAY -> cronograma.getTuesday();
