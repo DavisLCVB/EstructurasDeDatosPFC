@@ -11,6 +11,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -54,15 +55,22 @@ public class ProfessionalController {
         }).collect(HashMap::new, (map, mapEntry) -> map.put(mapEntry.getKey(), mapEntry.getValue()));
     }
 
-    private void deleteLapse(ScheduleFunc<TimeLapse> professionalSchedule, ScheduleFunc<DateTimeLapse> dest, DayOfWeek dia, DateTimeLapse intervaloCita) {
-        List<TimeLapse> dayLapses = obtenerListaDia(professionalSchedule, dia);
+    private void deleteLapse(Schedule professionalSchedule, ScheduleDate dest, DayOfWeek Day, DateTimeLapse appLapse) {
+        List<TimeLapse> dayLapses = getLapsesOfDay(professionalSchedule, Day);
 
-        List<TimeLapse> lapsosActualizados = actualizarIntervalosDespuesDeCita(dayLapses, intervaloCita);
+        //se obtienen los lapsos de tiempo donde no interfiere una cita
+        List<TimeLapse> UpdatedLapses = UpdateLapsesAfterApp(dayLapses, appLapse);
 
-        // asignarListaDia(professionalSchedule, dia, lapsosActualizados);
+        //Se le asigna el día a esos lapsos de tiempo de acuerdo a la cita
+        List<DateTimeLapse> UpdatedLapsesWithDate = DateUpdateLapse(UpdatedLapses, appLapse);
+
+        //Ingresar los lapsos de tiempo en el cronograma (ScheduleDate) de acuerdo al día.
+        AssingSchedulewithDate(dest, Day, UpdatedLapsesWithDate);
+
+        // AssingSchedule(professionalSchedule, dia, lapsosActualizados);
     }
 
-    private List<TimeLapse> obtenerListaDia(ScheduleFunc cronograma, DayOfWeek dia) {
+    private List<TimeLapse> getLapsesOfDay(Schedule cronograma, DayOfWeek dia) {
         return switch (dia) {
             case MONDAY -> cronograma.getMonday();
             case TUESDAY -> cronograma.getTuesday();
@@ -75,49 +83,92 @@ public class ProfessionalController {
         };
     }
 
-    private List<TimeLapse> actualizarIntervalosDespuesDeCita(List<TimeLapse> lapsosDia, DateTimeLapse cita) {
+    private List<DateTimeLapse> DateUpdateLapse(List<TimeLapse> UpdateLapses, DateTimeLapse appLapse) {
+        List<DateTimeLapse> updatedLapsesWithDate = new ArrayList<>();
+
+        for (TimeLapse lapse : UpdateLapses) {
+
+            LocalDate appDate = appLapse.getStart().toLocalDate();
+
+            LocalDateTime startDateTime = LocalDateTime.of(appDate, lapse.getStart());
+            LocalDateTime endDateTime = LocalDateTime.of(appDate, lapse.getEnd());
+
+            DateTimeLapse LapseWithDate = new DateTimeLapse(startDateTime, endDateTime);
+
+            updatedLapsesWithDate.add(LapseWithDate);
+        }
+        return updatedLapsesWithDate;
+    }
+
+    private List<TimeLapse> UpdateLapsesAfterApp(List<TimeLapse> daylapses, DateTimeLapse app) {
         List<TimeLapse> nuevosLapsos = new ArrayList<>();
 
-        for (TimeLapse lapso : lapsosDia) {
-            if (cita.getStart().toLocalTime().isBefore(lapso.getStart()) || cita.getEnd().toLocalTime().isAfter(lapso.getEnd())) {
+        for (TimeLapse daylapse : daylapses) {
+            if (app.getStart().toLocalTime().isBefore(daylapse.getStart()) || app.getEnd().toLocalTime().isAfter(daylapse.getEnd())) {
                 //Aqui vemos si la cita no está dentro del horario, si efectivamente no lo está es porque la cita no pertenece a este horario,
                 // así que salta al siguiente lapso  *del mismo día*
                 //se agregar el lapso completo sin particiones ya que el lapso no contiene la cita por lo tanto no hay necesidad de particionar.
-                nuevosLapsos.add(lapso);
+                nuevosLapsos.add(daylapse);
 
-            } else if (cita.getStart().toLocalTime().equals(lapso.getStart()) || cita.getEnd().toLocalTime().equals(lapso.getEnd())) {
+            } else if (app.getStart().toLocalTime().equals(daylapse.getStart()) || app.getEnd().toLocalTime().equals(daylapse.getEnd())) {
                 //La cita pertenece a este intervalo del horario pero un lado coincide con el inicio o final de un lapso.
-                if (cita.getStart().toLocalTime().equals(lapso.getStart())) {
+                if (app.getStart().toLocalTime().equals(daylapse.getStart()) && app.getEnd().toLocalTime().isBefore(daylapse.getEnd())) {
                     // Generar un nuevo lapso más corto antes de la cita
-                    TimeLapse nuevolapso = new TimeLapse(cita.getEnd().toLocalTime(), lapso.getEnd());
+                    TimeLapse nuevolapso = new TimeLapse(app.getEnd().toLocalTime(), daylapse.getEnd());
 
                     if (nuevolapso.getDuration() > 60) {
                         // Agregar solo si el lapso es mayor a una hora
                         nuevosLapsos.add(nuevolapso);
                     }
-                } else if (cita.getEnd().toLocalTime().equals((lapso.getEnd()))) {
-                    TimeLapse nuevolapso = new TimeLapse(lapso.getStart(), cita.getStart().toLocalTime());
+                } else if (app.getEnd().toLocalTime().equals((daylapse.getEnd())) && app.getStart().toLocalTime().isAfter(daylapse.getStart())) {
+                    TimeLapse nuevolapso = new TimeLapse(daylapse.getStart(), app.getStart().toLocalTime());
                     if (nuevolapso.getDuration() > 60) {
                         // Agregar solo si el lapso es mayor a una hora
                         nuevosLapsos.add(nuevolapso);
                     }
                 }
 
-            } else if (cita.getStart().toLocalTime().isAfter(lapso.getStart()) || cita.getEnd().toLocalTime().isBefore(lapso.getEnd())) {
-                TimeLapse nuevolapsoAntes = new TimeLapse(lapso.getStart(), cita.getStart().toLocalTime());
-                if (nuevolapsoAntes.getDuration() > 60) {
-                    nuevosLapsos.add(nuevolapsoAntes);
+            } else if (app.getStart().toLocalTime().isAfter(daylapse.getStart()) && app.getEnd().toLocalTime().isBefore(daylapse.getEnd())) {
+                TimeLapse newLapseBefore = new TimeLapse(daylapse.getStart(), app.getStart().toLocalTime());
+                if (newLapseBefore.getDuration() > 60) {
+                    nuevosLapsos.add(newLapseBefore);
                 }
-                TimeLapse nuevolapsoDespues = new TimeLapse(cita.getEnd().toLocalTime(), lapso.getEnd());
-                if (nuevolapsoDespues.getDuration() > 60) {
-                    nuevosLapsos.add(nuevolapsoDespues);
+                TimeLapse newLapseAfter = new TimeLapse(app.getEnd().toLocalTime(), daylapse.getEnd());
+                if (newLapseAfter.getDuration() > 60) {
+                    nuevosLapsos.add(newLapseAfter);
                 }
             }
         }
         return nuevosLapsos;
     }
 
-    private void asignarListaDia(Schedule cronograma, DayOfWeek dia, List<TimeLapse> lapsos) {
+    private void AssingSchedulewithDate(ScheduleDate dest, DayOfWeek Day, List<DateTimeLapse> UpdatedLapsesWithDate) {
+        switch (Day) {
+            case MONDAY:
+                dest.setMonday(UpdatedLapsesWithDate);
+                break;
+            case TUESDAY:
+                dest.setTuesday(UpdatedLapsesWithDate);
+                break;
+            case WEDNESDAY:
+                dest.setWednesday(UpdatedLapsesWithDate);
+                break;
+            case THURSDAY:
+                dest.setThursday(UpdatedLapsesWithDate);
+                break;
+            case FRIDAY:
+                dest.setFriday(UpdatedLapsesWithDate);
+                break;
+            case SATURDAY:
+                dest.setSaturday(UpdatedLapsesWithDate);
+                break;
+            case SUNDAY:
+                dest.setSunday(UpdatedLapsesWithDate);
+                break;
+        }
+    }
+    /*
+    private void AssingSchedule(Schedule cronograma, DayOfWeek dia, List<TimeLapse> lapsos) {
         switch (dia) {
             case MONDAY:
                 cronograma.setMonday(lapsos);
@@ -141,6 +192,6 @@ public class ProfessionalController {
                 cronograma.setSunday(lapsos);
                 break;
         }
-    }
+    }*/
 
 }
