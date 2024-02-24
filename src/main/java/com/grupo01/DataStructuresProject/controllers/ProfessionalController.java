@@ -56,6 +56,7 @@ public class ProfessionalController {
     }
 
     private void deleteLapse(Schedule professionalSchedule, ScheduleDate dest, DayOfWeek Day, DateTimeLapse appLapse) {
+
         List<TimeLapse> dayLapses = getLapsesOfDay(professionalSchedule, Day);
 
         //se obtienen los lapsos de tiempo donde no interfiere una cita
