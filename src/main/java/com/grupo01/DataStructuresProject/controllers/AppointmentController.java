@@ -22,9 +22,19 @@ public class AppointmentController {
         return appointmentDAOImp.findAll();
     }
 
+    @GetMapping(value = "/find/{id}")
+    public Mono<Appointment> findById(@PathVariable String id) {
+        return appointmentDAOImp.findById(id);
+    }
+
     @PostMapping(value = "/save")
     public Mono<Appointment> save(@RequestBody Appointment appointment) {
         appointment.setId(idGenerator.generateAppointmentID());
         return appointmentDAOImp.save(appointment);
+    }
+
+    @PutMapping(value = "/update/{id}")
+    public Mono<Appointment> update(@PathVariable String id, @RequestBody Appointment appointment) {
+        return appointmentDAOImp.update(id, appointment);
     }
 }

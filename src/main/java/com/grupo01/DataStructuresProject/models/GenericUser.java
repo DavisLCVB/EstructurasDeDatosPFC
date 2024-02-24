@@ -1,5 +1,6 @@
 package com.grupo01.DataStructuresProject.models;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 
@@ -19,5 +20,6 @@ public abstract class GenericUser{
     protected String lastName;
     protected String email;
     protected String password;
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm")
     protected LocalDateTime registrationDate;
 }

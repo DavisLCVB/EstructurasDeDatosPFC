@@ -9,7 +9,9 @@ import reactor.core.publisher.Mono;
 @Repository
 public interface ProfessionalDAO extends ReactiveMongoRepository<ProfessionalUser, String> {
     Mono<ProfessionalUser> findByEmail(String email);
+
     Mono<Boolean> existsByEmail(String id);
+
     Mono<ProfessionalUser> findByEmailAndPassword(String email, String password);
 
     Flux<ProfessionalUser> findAllByIdArea(String idArea);

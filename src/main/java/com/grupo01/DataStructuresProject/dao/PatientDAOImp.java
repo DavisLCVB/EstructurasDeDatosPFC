@@ -3,12 +3,17 @@ package com.grupo01.DataStructuresProject.dao;
 import com.grupo01.DataStructuresProject.models.PatientUser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
 public class PatientDAOImp {
     @Autowired
     private PatientDAO patientDAO;
+
+    public Flux<PatientUser> findAll() {
+        return patientDAO.findAll();
+    }
 
     public Mono<PatientUser> save(PatientUser patientUser) {
         return patientDAO.save(patientUser);

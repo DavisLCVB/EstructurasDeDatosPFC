@@ -44,7 +44,15 @@ public class AppointmentDAOImp {
         return appointmentDAO.findById(id);
     }
 
-    public Mono<Appointment> update(Appointment appointment) {
-        return appointmentDAO.save(appointment);
+    public Mono<Appointment> update(String id, Appointment appointment) {
+        return appointmentDAO.findById(id)
+                .map(existingAppointment -> {
+                    existingAppointment.setIdProfessional(appointment.getIdProfessional());
+                    existingAppointment.setIdPatient(appointment.getIdPatient());
+                    existingAppointment.setIdArea(appointment.getIdArea());
+                    existingAppointment.setDate(appointment.getDate());
+                    existingAppointment.setStatus(appointment.getStatus());
+                    return existingAppointment;
+                }).flatMap(appointmentDAO::save);
     }
 }

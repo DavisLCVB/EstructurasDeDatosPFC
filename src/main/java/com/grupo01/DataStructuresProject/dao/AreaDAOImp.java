@@ -15,7 +15,7 @@ public class AreaDAOImp {
         return areaDAO.findAll();
     }
 
-    public Flux<Area> findByNombre(String nombre) {
+    public Mono<Area> findByName(String nombre) {
         return areaDAO.findByName(nombre);
     }
 
