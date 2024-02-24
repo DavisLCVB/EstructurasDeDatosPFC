@@ -13,10 +13,8 @@ import reactor.core.publisher.Mono;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/professional")
@@ -53,6 +51,34 @@ public class ProfessionalController {
                     .doOnNext(a -> deleteLapse(p.getAvailableHours(), schedule, a.getDate().getStart().getDayOfWeek(), a.getDate()))
                     .then(Mono.just(Map.entry(p.getId(), schedule)));
         }).collect(HashMap::new, (map, mapEntry) -> map.put(mapEntry.getKey(), mapEntry.getValue()));
+    }
+
+    //Método agregado (
+    public Mono<Map<DateTimeLapse, List<String>>> getAvailableTimesByProfessionals(String idArea, LocalDateTime lastMonday) {
+        return getAvailableScheduleProfessionals(idArea, lastMonday)
+                .flatMapMany(map -> Flux.fromIterable(map.entrySet()))
+                .flatMap(entry -> Flux.fromIterable(extractDateTimeLapses(entry.getValue()))
+                        .map(lapse -> new AbstractMap.SimpleEntry<>(lapse, entry.getKey())))
+                .groupBy(Map.Entry::getKey) // Agrupación por DateTimeLapse
+                .flatMap(group -> group.collectList()
+                        .map(list -> new AbstractMap.SimpleEntry<>(group.key(), list.stream()
+                                .map(Map.Entry::getValue)
+                                .collect(Collectors.toList()))))
+                .collectMap(Map.Entry::getKey, Map.Entry::getValue);
+    }
+    //Método auxiliar
+    private List<DateTimeLapse> extractDateTimeLapses(ScheduleDate schedule) {
+        List<DateTimeLapse> allLapses = new ArrayList<>();
+
+        allLapses.addAll(schedule.getMonday());
+        allLapses.addAll(schedule.getTuesday());
+        allLapses.addAll(schedule.getWednesday());
+        allLapses.addAll(schedule.getThursday());
+        allLapses.addAll(schedule.getFriday());
+        allLapses.addAll(schedule.getSaturday());
+        allLapses.addAll(schedule.getSunday());
+
+        return allLapses;
     }
 
     private void deleteLapse(Schedule professionalSchedule, ScheduleDate dest, DayOfWeek Day, DateTimeLapse appLapse) {
