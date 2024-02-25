@@ -5,6 +5,7 @@ import com.grupo01.DataStructuresProject.dao.AppointmentDAOImp;
 import com.grupo01.DataStructuresProject.dao.AreaDAOImp;
 import com.grupo01.DataStructuresProject.dao.ProfessionalDAOImp;
 import com.grupo01.DataStructuresProject.frontformat.DateTimeLapseID;
+import com.grupo01.DataStructuresProject.models.Area;
 import com.grupo01.DataStructuresProject.models.ProfessionalUser;
 import com.grupo01.DataStructuresProject.service.IDGenerator;
 import com.grupo01.DataStructuresProject.service.LapseOperation;
@@ -54,19 +55,24 @@ public class ProfessionalController {
         return professionalDAOImp.update(idProfessional, professional);
     }
 
-    public Mono<HashMap<String, ScheduleDate>> getAvailableScheduleProfessionals(String idArea, LocalDateTime lastMonday) {
-        return professionalDAOImp.findAllByIdArea(idArea).flatMapSequential(p -> {
-            ScheduleDate schedule = convertToScheduleDate(p.getAvailableHours(), lastMonday);
-            return appointmentDAOImp.findAllByIdProfessional(p.getId()).filter(a -> a.getStatus().equals(AppointmentStatus.PENDING))
-                    .filter(a -> a.getDate().getStart().isAfter(lastMonday))
-                    .doOnNext(a -> {
-                        var s = a.getDate().getStart();
-                        var e = a.getDate().getEnd();
-                        var minutes = e.getHour() * 60 + e.getMinute() - s.getHour() * 60 - s.getMinute();
-                        deleteLapse(schedule, a.getDate(), minutes);
-                    })
-                    .then(Mono.just(Map.entry(p.getId(), schedule)));
-        }).collect(HashMap::new, (map, mapEntry) -> map.put(mapEntry.getKey(), mapEntry.getValue()));
+    public Mono<HashMap<String, ScheduleDate>> getAvailableScheduleProfessionals(@PathVariable String idArea, @RequestBody @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm") LocalDateTime lastMonday) {
+        return professionalDAOImp.findAllByIdArea(idArea)
+                .flatMapSequential(p -> {
+                    Mono<Area> areaMono = areaDAOImp.findById(idArea);
+
+                    return areaMono.flatMap(area -> {
+                        ScheduleDate schedule = convertToScheduleDate(p.getAvailableHours(), lastMonday);
+                        return appointmentDAOImp.findAllByIdProfessional(p.getId())
+                                .filter(a -> a.getStatus().equals(AppointmentStatus.PENDING))
+                                .filter(a -> a.getDate().getStart().isAfter(lastMonday))
+                                .doOnNext(a -> {
+                                    var minutes = (area.getDuration().getHour()*60) + area.getDuration().getMinute();
+                                    deleteLapse(schedule, a.getDate(), minutes);
+                                })
+                                .then(Mono.just(Map.entry(p.getId(), schedule)));
+                    });
+                })
+                .collect(HashMap::new, (map, mapEntry) -> map.put(mapEntry.getKey(), mapEntry.getValue()));
     }
 
     private ScheduleDate convertToScheduleDate(Schedule schedule, LocalDateTime monday) {
@@ -127,24 +133,24 @@ public class ProfessionalController {
                 if (app.getStart().equals(daylapse.getStart()) && app.getEnd().isBefore(daylapse.getEnd())) {
                     // Generar un nuevo lapso más corto antes de la cita
                     DateTimeLapse nuevolapso = new DateTimeLapse(app.getEnd(), daylapse.getEnd());
-                    if (nuevolapso.getDuration() > minutes) {
+                    if (nuevolapso.getDuration() >= minutes) {
                         // Agregar solo si el lapso es mayor a una hora
                         nuevosLapsos.add(nuevolapso);
                     }
                 } else if (app.getEnd().equals((daylapse.getEnd())) && app.getStart().isAfter(daylapse.getStart())) {
                     DateTimeLapse nuevolapso = new DateTimeLapse(daylapse.getStart(), app.getStart());
-                    if (nuevolapso.getDuration() > minutes) {
+                    if (nuevolapso.getDuration() >= minutes) {
                         // Agregar solo si el lapso es mayor a una hora
                         nuevosLapsos.add(nuevolapso);
                     }
                 }
             } else if (app.getStart().isAfter(daylapse.getStart()) && app.getEnd().isBefore(daylapse.getEnd())) {
                 DateTimeLapse newLapseBefore = new DateTimeLapse(daylapse.getStart(), app.getStart());
-                if (newLapseBefore.getDuration() > minutes) {
+                if (newLapseBefore.getDuration() >= minutes) {
                     nuevosLapsos.add(newLapseBefore);
                 }
                 DateTimeLapse newLapseAfter = new DateTimeLapse(app.getEnd(), daylapse.getEnd());
-                if (newLapseAfter.getDuration() > minutes) {
+                if (newLapseAfter.getDuration() >= minutes) {
                     nuevosLapsos.add(newLapseAfter);
                 }
             }

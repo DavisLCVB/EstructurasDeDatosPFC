@@ -1,6 +1,7 @@
 package com.grupo01.DataStructuresProject.frontformat;
 
 import com.grupo01.DataStructuresProject.models.Appointment;
+import com.grupo01.DataStructuresProject.utils.AppointmentStatus;
 import com.grupo01.DataStructuresProject.utils.DateTimeLapse;
 import lombok.*;
 
@@ -13,30 +14,32 @@ import java.time.LocalTime;
 @AllArgsConstructor
 @ToString
 @EqualsAndHashCode
-public class AppointmentFormat extends Appointment {
-    private String patientFullName;
-    private String professionalName;
+public class AppointmentFormat {
+    private String citaId;
+    private String pacienteId;
+    private String pacienteFullName;
+    private String profesionalId;
+    private String professionalFullName;
+    private String areaId;
     private String areaName;
     private LocalTime areaDuration;
-    private LocalDateTime StartTime;
-    private LocalDateTime EndTime;
+    private DateTimeLapse date;
+    private AppointmentStatus Status;
+
 
     public AppointmentFormat(Appointment originalAppointment, String patientFullName,
-                             String professionalName, String areaName, LocalTime areaDuration) {
+                             String professionalFullName, String areaName, LocalTime areaDuration) {
 
-        super(originalAppointment.getId(),
-                originalAppointment.getIdPatient(),
-                originalAppointment.getIdProfessional(),
-                originalAppointment.getIdArea(),
-                originalAppointment.getDate(),
-                originalAppointment.getStatus());
+        this.citaId = originalAppointment.getId();
+        this.pacienteId = originalAppointment.getIdPatient();
+        this.profesionalId =originalAppointment.getIdProfessional();
+        this.areaId = originalAppointment.getIdArea();
+        this.date = originalAppointment.getDate();
+        this.Status = originalAppointment.getStatus();
 
-        this.patientFullName = patientFullName;
-        this.professionalName = professionalName;
+        this.pacienteFullName = patientFullName;
+        this.professionalFullName = professionalFullName;
         this.areaName = areaName;
         this.areaDuration = areaDuration;
-        this.StartTime = originalAppointment.getDate().getStart();
-        this.EndTime = originalAppointment.getDate().getEnd();
-
     }
 }
