@@ -5,6 +5,7 @@ import com.grupo01.DataStructuresProject.dao.AppointmentDAOImp;
 import com.grupo01.DataStructuresProject.dao.AreaDAOImp;
 import com.grupo01.DataStructuresProject.dao.ProfessionalDAOImp;
 import com.grupo01.DataStructuresProject.frontformat.DateTimeLapseID;
+import com.grupo01.DataStructuresProject.models.Area;
 import com.grupo01.DataStructuresProject.models.ProfessionalUser;
 import com.grupo01.DataStructuresProject.service.IDGenerator;
 import com.grupo01.DataStructuresProject.utils.*;
@@ -51,20 +52,25 @@ public class ProfessionalController {
         return professionalDAOImp.update(idProfessional, professional);
     }
 
-    @GetMapping(value = "/getSchedule_1/{idArea}")
-    public Mono<HashMap<String, ScheduleDate>> getAvailableScheduleProfessionals(@PathVariable String idArea, @RequestBody @JsonFormat(pattern = "yyyy-MM-ddTHH:mm") LocalDateTime lastMonday) {
-        return professionalDAOImp.findAllByIdArea(idArea).flatMapSequential(p -> {
-            ScheduleDate schedule = convertToScheduleDate(p.getAvailableHours(), lastMonday);
-            return appointmentDAOImp.findAllByIdProfessional(p.getId()).filter(a -> a.getStatus().equals(AppointmentStatus.PENDING))
-                    .filter(a -> a.getDate().getStart().isAfter(lastMonday))
-                    .doOnNext(a -> {
-                        var s = a.getDate().getStart();
-                        var e = a.getDate().getEnd();
-                        var minutes = e.getHour() * 60 + e.getMinute() - s.getHour() * 60 - s.getMinute();
-                        deleteLapse(schedule, a.getDate(), minutes);
-                    })
-                    .then(Mono.just(Map.entry(p.getId(), schedule)));
-        }).collect(HashMap::new, (map, mapEntry) -> map.put(mapEntry.getKey(), mapEntry.getValue()));
+    @GetMapping(value = "/getSchedule/{idArea}")
+    public Mono<HashMap<String, ScheduleDate>> getAvailableScheduleProfessionals(@PathVariable String idArea, @RequestBody @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm") LocalDateTime lastMonday) {
+
+        return professionalDAOImp.findAllByIdArea(idArea)
+                .flatMapSequential(p -> {
+                    Mono<Area> areaMono = areaDAOImp.findById(idArea);
+                    return areaMono.flatMap(area -> {
+                        ScheduleDate schedule = convertToScheduleDate(p.getAvailableHours(), lastMonday);
+                        return appointmentDAOImp.findAllByIdProfessional(p.getId())
+                                .filter(a -> a.getStatus().equals(AppointmentStatus.PENDING))
+                                .filter(a -> a.getDate().getStart().isAfter(lastMonday))
+                                .doOnNext(a -> {
+                                    var minutes = (area.getDuration().getHour()*60) + area.getDuration().getMinute();
+                                    deleteLapse(schedule, a.getDate(), minutes);
+                                })
+                                .then(Mono.just(Map.entry(p.getId(), schedule)));
+                    });
+                })
+                .collect(HashMap::new, (map, mapEntry) -> map.put(mapEntry.getKey(), mapEntry.getValue()));
     }
 
     private ScheduleDate convertToScheduleDate(Schedule schedule, LocalDateTime monday) {
@@ -175,7 +181,6 @@ public class ProfessionalController {
                 break;
         }
     }
-
 //    @GetMapping(value = "/getSchedule_2/{idArea}")
 //    public Mono<Map<DateTimeLapse, List<String>>> getAvailableTimesByProfessionals(@PathVariable String idArea, @RequestBody @JsonFormat(pattern = "yyyy-MM-ddTHH:mm") LocalDateTime lastMonday) {
 //        return getAvailableScheduleProfessionals(idArea, lastMonday)
