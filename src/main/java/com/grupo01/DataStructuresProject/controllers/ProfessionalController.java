@@ -7,6 +7,7 @@ import com.grupo01.DataStructuresProject.dao.ProfessionalDAOImp;
 import com.grupo01.DataStructuresProject.frontformat.DateTimeLapseID;
 import com.grupo01.DataStructuresProject.models.ProfessionalUser;
 import com.grupo01.DataStructuresProject.service.IDGenerator;
+import com.grupo01.DataStructuresProject.service.LapseOperation;
 import com.grupo01.DataStructuresProject.utils.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -15,8 +16,10 @@ import reactor.core.publisher.Mono;
 
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/professional")
@@ -51,8 +54,7 @@ public class ProfessionalController {
         return professionalDAOImp.update(idProfessional, professional);
     }
 
-    @GetMapping(value = "/getSchedule_1/{idArea}")
-    public Mono<HashMap<String, ScheduleDate>> getAvailableScheduleProfessionals(@PathVariable String idArea, @RequestBody @JsonFormat(pattern = "yyyy-MM-ddTHH:mm") LocalDateTime lastMonday) {
+    public Mono<HashMap<String, ScheduleDate>> getAvailableScheduleProfessionals(String idArea, LocalDateTime lastMonday) {
         return professionalDAOImp.findAllByIdArea(idArea).flatMapSequential(p -> {
             ScheduleDate schedule = convertToScheduleDate(p.getAvailableHours(), lastMonday);
             return appointmentDAOImp.findAllByIdProfessional(p.getId()).filter(a -> a.getStatus().equals(AppointmentStatus.PENDING))
@@ -176,28 +178,39 @@ public class ProfessionalController {
         }
     }
 
-//    @GetMapping(value = "/getSchedule_2/{idArea}")
-//    public Mono<Map<DateTimeLapse, List<String>>> getAvailableTimesByProfessionals(@PathVariable String idArea, @RequestBody @JsonFormat(pattern = "yyyy-MM-ddTHH:mm") LocalDateTime lastMonday) {
-//        return getAvailableScheduleProfessionals(idArea, lastMonday)
-//                .flatMapMany(map -> Flux.fromIterable(map.entrySet()))
-//                .flatMap(entry -> Flux.fromIterable(extractDateTimeLapses(entry.getValue()))
-//                        .map(lapse -> new AbstractMap.SimpleEntry<>(lapse, entry.getKey())))
-//                .groupBy(Map.Entry::getKey)
-//                .flatMap(group -> group.collectList()
-//                        .map(list -> new AbstractMap.SimpleEntry<>(group.key(), list.stream()
-//                                .map(Map.Entry::getValue)
-//                                .collect(Collectors.toList()))))
-//                .collectMap(Map.Entry::getKey, Map.Entry::getValue);
-//    }
-//
-//    @GetMapping(value = "/getSchedule_3/{idArea}")
-//    public Mono<HashMap<String, List<DateTimeLapseID>>> getAvailable(@PathVariable String idArea, @RequestBody @JsonFormat(pattern = "yyyy-MM-ddTHH:mm") LocalDateTime lastMonday) {
-//        List<DateTimeLapseID> monday = new ArrayList<>();
-//        List<DateTimeLapseID> tuesday = new ArrayList<>();
-//        List<DateTimeLapseID> wednesday = new ArrayList<>();
-//        List<DateTimeLapseID> thursday = new ArrayList<>();
-//        List<DateTimeLapseID> friday = new ArrayList<>();
-//        List<DateTimeLapseID> saturday = new ArrayList<>();
-//        List<DateTimeLapseID> sunday = new ArrayList<>();
-//    }
+    @GetMapping(value = "/getSchedule/{idArea}")
+    public Mono<HashMap<String, List<DateTimeLapseID>>> getAvailable(@PathVariable String idArea, @RequestBody @JsonFormat(pattern = "yyyy-MM-ddTHH:mm") LocalDateTime lastMonday) {
+        return getAvailableScheduleProfessionals(idArea, lastMonday)
+                .map(map -> {
+                    var lists = new HashMap<String, List<DateTimeLapseID>>();
+                    lists.put("monday", new ArrayList<>());
+                    lists.put("tuesday", new ArrayList<>());
+                    lists.put("wednesday", new ArrayList<>());
+                    lists.put("thursday", new ArrayList<>());
+                    lists.put("friday", new ArrayList<>());
+                    lists.put("saturday", new ArrayList<>());
+                    lists.put("sunday", new ArrayList<>());
+                    LapseOperation op = new LapseOperation();
+                    map.forEach((id, schedule) -> {
+                        lists.put("monday", mergeLapses(lists.get("monday"), schedule.getMonday(), id, op));
+                        lists.put("tuesday", mergeLapses(lists.get("tuesday"), schedule.getTuesday(), id, op));
+                        lists.put("wednesday", mergeLapses(lists.get("wednesday"), schedule.getWednesday(), id, op));
+                        lists.put("thursday", mergeLapses(lists.get("thursday"), schedule.getThursday(), id, op));
+                        lists.put("friday", mergeLapses(lists.get("friday"), schedule.getFriday(), id, op));
+                        lists.put("saturday", mergeLapses(lists.get("saturday"), schedule.getSaturday(), id, op));
+                        lists.put("sunday", mergeLapses(lists.get("sunday"), schedule.getSunday(), id, op));
+                    });
+                    return lists;
+                });
+    }
+
+    private ArrayList<DateTimeLapseID> mergeLapses(List<DateTimeLapseID> day, List<DateTimeLapse> lapses, String id, LapseOperation op) {
+        var returnList = day;
+        for (DateTimeLapse lapse : lapses) {
+            DateTimeLapseID newLapse = new DateTimeLapseID(lapse.getStart(), lapse.getEnd());
+            newLapse.getProfessionalID().add(id);
+            returnList = op.mergeDateTimeLapses((ArrayList<DateTimeLapseID>) returnList, newLapse);
+        }
+        return (ArrayList<DateTimeLapseID>) returnList;
+    }
 }
