@@ -1,6 +1,10 @@
 package com.grupo01.DataStructuresProject.controllers;
 
 import com.grupo01.DataStructuresProject.dao.AppointmentDAOImp;
+import com.grupo01.DataStructuresProject.dao.AreaDAOImp;
+import com.grupo01.DataStructuresProject.dao.PatientDAOImp;
+import com.grupo01.DataStructuresProject.dao.ProfessionalDAOImp;
+import com.grupo01.DataStructuresProject.frontformat.AppointmentFormat;
 import com.grupo01.DataStructuresProject.models.Appointment;
 import com.grupo01.DataStructuresProject.service.IDGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,26 +19,70 @@ public class AppointmentController {
     @Autowired
     private AppointmentDAOImp appointmentDAOImp;
     @Autowired
+    private ProfessionalDAOImp professionalDAOImp;
+    @Autowired
+    private PatientDAOImp patientDAOImp;
+    @Autowired
+    private AreaDAOImp areaDAOImp;
+    @Autowired
     private IDGenerator idGenerator;
 
-    @GetMapping(value = "/findAll")
-    public Flux<Appointment> findAll() {
-        return appointmentDAOImp.findAll();
+    @GetMapping(value = "/findAll/{idPatient}")
+    public Flux<AppointmentFormat> findAll(@PathVariable String idPatient) {
+        return appointmentDAOImp.findAll().flatMap(e -> {
+            String idProfessional = e.getIdProfessional();
+            String idArea = e.getIdArea();
+            return areaDAOImp.findById(idArea)
+                    .flatMap(area -> professionalDAOImp.findById(idProfessional)
+                            .flatMap(professional -> patientDAOImp.findById(idPatient)
+                                    .map(patient -> new AppointmentFormat(e, patient.getFirstName(), patient.getLastName(), professional.getFirstName(), professional.getLastName(), area.getName(), area.getDuration()))
+                            ));
+        });
     }
 
     @GetMapping(value = "/find/{id}")
-    public Mono<Appointment> findById(@PathVariable String id) {
-        return appointmentDAOImp.findById(id);
+    public Mono<AppointmentFormat> findById(@PathVariable String id) {
+        return appointmentDAOImp.findById(id)
+                .flatMap(appointment -> {
+                    String idPatient = appointment.getIdPatient();
+                    String idProfessional = appointment.getIdProfessional();
+                    String idArea = appointment.getIdArea();
+                    return areaDAOImp.findById(idArea)
+                            .flatMap(area -> professionalDAOImp.findById(idProfessional)
+                                    .flatMap(professional -> patientDAOImp.findById(idPatient)
+                                            .map(patient -> new AppointmentFormat(appointment, patient.getFirstName(), patient.getLastName(), professional.getFirstName(), professional.getLastName(), area.getName(), area.getDuration()))
+                                    ));
+                });
     }
 
     @PostMapping(value = "/save")
-    public Mono<Appointment> save(@RequestBody Appointment appointment) {
+    public Mono<AppointmentFormat> save(@RequestBody Appointment appointment) {
         appointment.setId(idGenerator.generateAppointmentID());
-        return appointmentDAOImp.save(appointment);
+        return appointmentDAOImp.save(appointment)
+                .flatMap(e -> {
+                    String idPatient = e.getIdPatient();
+                    String idProfessional = e.getIdProfessional();
+                    String idArea = e.getIdArea();
+                    return areaDAOImp.findById(idArea)
+                            .flatMap(area -> professionalDAOImp.findById(idProfessional)
+                                    .flatMap(professional -> patientDAOImp.findById(idPatient)
+                                            .map(patient -> new AppointmentFormat(e, patient.getFirstName(), patient.getLastName(), professional.getFirstName(), professional.getLastName(), area.getName(), area.getDuration()))
+                                    ));
+                });
     }
 
     @PutMapping(value = "/update/{id}")
-    public Mono<Appointment> update(@PathVariable String id, @RequestBody Appointment appointment) {
-        return appointmentDAOImp.update(id, appointment);
+    public Mono<AppointmentFormat> update(@PathVariable String id, @RequestBody Appointment appointment) {
+        return appointmentDAOImp.update(id, appointment)
+                .flatMap(e -> {
+                    String idPatient = e.getIdPatient();
+                    String idProfessional = e.getIdProfessional();
+                    String idArea = e.getIdArea();
+                    return areaDAOImp.findById(idArea)
+                            .flatMap(area -> professionalDAOImp.findById(idProfessional)
+                                    .flatMap(professional -> patientDAOImp.findById(idPatient)
+                                            .map(patient -> new AppointmentFormat(e, patient.getFirstName(), patient.getLastName(), professional.getFirstName(), professional.getLastName(), area.getName(), area.getDuration()))
+                                    ));
+                });
     }
 }

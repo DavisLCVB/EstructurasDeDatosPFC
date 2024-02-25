@@ -12,12 +12,12 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @EqualsAndHashCode(callSuper = true)
-public class DateTimeLapseID extends DateTimeLapse {
+public class DateTimeLapseID extends DateTimeLapse implements JsonMasticadito{
 
     public DateTimeLapseID(LocalDateTime start, LocalDateTime end) {
         super(start, end);
         professionalID = new ArrayList<>();
     }
 
-    List<String> professionalID;
+    List<ProfesionalIDFormat> professionalID;
 }

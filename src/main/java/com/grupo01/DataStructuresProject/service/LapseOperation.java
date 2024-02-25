@@ -1,6 +1,7 @@
 package com.grupo01.DataStructuresProject.service;
 
 import com.grupo01.DataStructuresProject.frontformat.DateTimeLapseID;
+import com.grupo01.DataStructuresProject.frontformat.ProfesionalIDFormat;
 import com.grupo01.DataStructuresProject.utils.BooleanContainer;
 import com.grupo01.DataStructuresProject.utils.DateTimeLapse;
 import lombok.NoArgsConstructor;
@@ -70,7 +71,7 @@ public class LapseOperation {
         result.sort(Comparator.comparing(DateTimeLapse::getStart));
         for(var lapse: result){
             var id = lapse.getProfessionalID();
-            var idsNoDup = new ArrayList<String>();
+            var idsNoDup = new ArrayList<ProfesionalIDFormat>();
             for(var i: id){
                 if(!idsNoDup.contains(i)){
                     idsNoDup.add(i);

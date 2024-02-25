@@ -1,5 +1,6 @@
 package com.grupo01.DataStructuresProject.dao;
 
+import com.grupo01.DataStructuresProject.frontformat.AreaFormat;
 import com.grupo01.DataStructuresProject.models.Area;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

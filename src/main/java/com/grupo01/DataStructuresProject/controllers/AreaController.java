@@ -1,6 +1,7 @@
 package com.grupo01.DataStructuresProject.controllers;
 
 import com.grupo01.DataStructuresProject.dao.AreaDAOImp;
+import com.grupo01.DataStructuresProject.frontformat.AreaFormat;
 import com.grupo01.DataStructuresProject.models.Area;
 import com.grupo01.DataStructuresProject.service.IDGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,24 +18,24 @@ public class AreaController {
     private IDGenerator idGenerator;
 
     @GetMapping(value = "/findAll")
-    public Flux<Area> findAll() {
-        return areaDAOImp.findAll();
+    public Flux<AreaFormat> findAll() {
+        return areaDAOImp.findAll().map(AreaFormat::new);
     }
 
     @GetMapping(value = "/findById/{idArea}")
-    public Mono<Area> findById(@PathVariable String idArea) {
-        return areaDAOImp.findById(idArea);
+    public Mono<AreaFormat> findById(@PathVariable String idArea) {
+        return areaDAOImp.findById(idArea).map(AreaFormat::new);
     }
 
     @GetMapping(value = "/findByName/{name}")
-    public Mono<Area> findByName(@PathVariable String name) {
-        return areaDAOImp.findByName(name);
+    public Mono<AreaFormat> findByName(@PathVariable String name) {
+        return areaDAOImp.findByName(name).map(AreaFormat::new);
     }
 
     @PostMapping(value = "/save")
-    public Mono<Area> save(@RequestBody Area area) {
+    public Mono<AreaFormat> save(@RequestBody Area area) {
         area.setId(idGenerator.generateAreaID());
-        return areaDAOImp.save(area);
+        return areaDAOImp.save(area).map(AreaFormat::new);
     }
 
     @DeleteMapping(value = "/delete/{idArea}")
@@ -43,7 +44,7 @@ public class AreaController {
     }
 
     @PutMapping(value = "/update")
-    public Mono<Area> update(@RequestBody Area area) {
-        return areaDAOImp.update(area);
+    public Mono<AreaFormat> update(@RequestBody Area area) {
+        return areaDAOImp.update(area).map(AreaFormat::new);
     }
 }

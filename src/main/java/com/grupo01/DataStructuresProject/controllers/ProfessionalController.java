@@ -5,6 +5,8 @@ import com.grupo01.DataStructuresProject.dao.AppointmentDAOImp;
 import com.grupo01.DataStructuresProject.dao.AreaDAOImp;
 import com.grupo01.DataStructuresProject.dao.ProfessionalDAOImp;
 import com.grupo01.DataStructuresProject.frontformat.DateTimeLapseID;
+import com.grupo01.DataStructuresProject.frontformat.ProfesionalIDFormat;
+import com.grupo01.DataStructuresProject.models.Area;
 import com.grupo01.DataStructuresProject.models.ProfessionalUser;
 import com.grupo01.DataStructuresProject.service.IDGenerator;
 import com.grupo01.DataStructuresProject.service.LapseOperation;
@@ -54,19 +56,24 @@ public class ProfessionalController {
         return professionalDAOImp.update(idProfessional, professional);
     }
 
-    public Mono<HashMap<String, ScheduleDate>> getAvailableScheduleProfessionals(String idArea, LocalDateTime lastMonday) {
-        return professionalDAOImp.findAllByIdArea(idArea).flatMapSequential(p -> {
-            ScheduleDate schedule = convertToScheduleDate(p.getAvailableHours(), lastMonday);
-            return appointmentDAOImp.findAllByIdProfessional(p.getId()).filter(a -> a.getStatus().equals(AppointmentStatus.PENDING))
-                    .filter(a -> a.getDate().getStart().isAfter(lastMonday))
-                    .doOnNext(a -> {
-                        var s = a.getDate().getStart();
-                        var e = a.getDate().getEnd();
-                        var minutes = e.getHour() * 60 + e.getMinute() - s.getHour() * 60 - s.getMinute();
-                        deleteLapse(schedule, a.getDate(), minutes);
-                    })
-                    .then(Mono.just(Map.entry(p.getId(), schedule)));
-        }).collect(HashMap::new, (map, mapEntry) -> map.put(mapEntry.getKey(), mapEntry.getValue()));
+    public Mono<HashMap<String, ScheduleDate>> getAvailableScheduleProfessionals(@PathVariable String idArea, @RequestBody @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm") LocalDateTime lastMonday) {
+        return professionalDAOImp.findAllByIdArea(idArea)
+                .flatMapSequential(p -> {
+                    Mono<Area> areaMono = areaDAOImp.findById(idArea);
+
+                    return areaMono.flatMap(area -> {
+                        ScheduleDate schedule = convertToScheduleDate(p.getAvailableHours(), lastMonday);
+                        return appointmentDAOImp.findAllByIdProfessional(p.getId())
+                                .filter(a -> a.getStatus().equals(AppointmentStatus.PENDING))
+                                .filter(a -> a.getDate().getStart().isAfter(lastMonday))
+                                .doOnNext(a -> {
+                                    var minutes = (area.getDuration().getHour() * 60) + area.getDuration().getMinute();
+                                    deleteLapse(schedule, a.getDate(), minutes);
+                                })
+                                .then(Mono.just(Map.entry(p.getId(), schedule)));
+                    });
+                })
+                .collect(HashMap::new, (map, mapEntry) -> map.put(mapEntry.getKey(), mapEntry.getValue()));
     }
 
     private ScheduleDate convertToScheduleDate(Schedule schedule, LocalDateTime monday) {
@@ -127,24 +134,24 @@ public class ProfessionalController {
                 if (app.getStart().equals(daylapse.getStart()) && app.getEnd().isBefore(daylapse.getEnd())) {
                     // Generar un nuevo lapso más corto antes de la cita
                     DateTimeLapse nuevolapso = new DateTimeLapse(app.getEnd(), daylapse.getEnd());
-                    if (nuevolapso.getDuration() > minutes) {
+                    if (nuevolapso.getDuration() >= minutes) {
                         // Agregar solo si el lapso es mayor a una hora
                         nuevosLapsos.add(nuevolapso);
                     }
                 } else if (app.getEnd().equals((daylapse.getEnd())) && app.getStart().isAfter(daylapse.getStart())) {
                     DateTimeLapse nuevolapso = new DateTimeLapse(daylapse.getStart(), app.getStart());
-                    if (nuevolapso.getDuration() > minutes) {
+                    if (nuevolapso.getDuration() >= minutes) {
                         // Agregar solo si el lapso es mayor a una hora
                         nuevosLapsos.add(nuevolapso);
                     }
                 }
             } else if (app.getStart().isAfter(daylapse.getStart()) && app.getEnd().isBefore(daylapse.getEnd())) {
                 DateTimeLapse newLapseBefore = new DateTimeLapse(daylapse.getStart(), app.getStart());
-                if (newLapseBefore.getDuration() > minutes) {
+                if (newLapseBefore.getDuration() >= minutes) {
                     nuevosLapsos.add(newLapseBefore);
                 }
                 DateTimeLapse newLapseAfter = new DateTimeLapse(app.getEnd(), daylapse.getEnd());
-                if (newLapseAfter.getDuration() > minutes) {
+                if (newLapseAfter.getDuration() >= minutes) {
                     nuevosLapsos.add(newLapseAfter);
                 }
             }
@@ -181,7 +188,7 @@ public class ProfessionalController {
     @GetMapping(value = "/getSchedule/{idArea}")
     public Mono<HashMap<String, List<DateTimeLapseID>>> getAvailable(@PathVariable String idArea, @RequestBody @JsonFormat(pattern = "yyyy-MM-ddTHH:mm") LocalDateTime lastMonday) {
         return getAvailableScheduleProfessionals(idArea, lastMonday)
-                .map(map -> {
+                .flatMap(map -> {
                     var lists = new HashMap<String, List<DateTimeLapseID>>();
                     lists.put("monday", new ArrayList<>());
                     lists.put("tuesday", new ArrayList<>());
@@ -191,26 +198,30 @@ public class ProfessionalController {
                     lists.put("saturday", new ArrayList<>());
                     lists.put("sunday", new ArrayList<>());
                     LapseOperation op = new LapseOperation();
+                    List<Mono<Void>> mergeOperations = new ArrayList<>();
                     map.forEach((id, schedule) -> {
-                        lists.put("monday", mergeLapses(lists.get("monday"), schedule.getMonday(), id, op));
-                        lists.put("tuesday", mergeLapses(lists.get("tuesday"), schedule.getTuesday(), id, op));
-                        lists.put("wednesday", mergeLapses(lists.get("wednesday"), schedule.getWednesday(), id, op));
-                        lists.put("thursday", mergeLapses(lists.get("thursday"), schedule.getThursday(), id, op));
-                        lists.put("friday", mergeLapses(lists.get("friday"), schedule.getFriday(), id, op));
-                        lists.put("saturday", mergeLapses(lists.get("saturday"), schedule.getSaturday(), id, op));
-                        lists.put("sunday", mergeLapses(lists.get("sunday"), schedule.getSunday(), id, op));
+                        mergeOperations.add(mergeLapses(lists.get("monday"), schedule.getMonday(), id, op).doOnNext(list -> lists.put("monday", list)).then());
+                        mergeOperations.add(mergeLapses(lists.get("tuesday"), schedule.getTuesday(), id, op).doOnNext(list -> lists.put("tuesday", list)).then());
+                        mergeOperations.add(mergeLapses(lists.get("wednesday"), schedule.getWednesday(), id, op).doOnNext(list -> lists.put("wednesday", list)).then());
+                        mergeOperations.add(mergeLapses(lists.get("thursday"), schedule.getThursday(), id, op).doOnNext(list -> lists.put("thursday", list)).then());
+                        mergeOperations.add(mergeLapses(lists.get("friday"), schedule.getFriday(), id, op).doOnNext(list -> lists.put("friday", list)).then());
+                        mergeOperations.add(mergeLapses(lists.get("saturday"), schedule.getSaturday(), id, op).doOnNext(list -> lists.put("saturday", list)).then());
+                        mergeOperations.add(mergeLapses(lists.get("sunday"), schedule.getSunday(), id, op).doOnNext(list -> lists.put("sunday", list)).then());
                     });
-                    return lists;
+                    return Mono.when(mergeOperations).thenReturn(lists);
                 });
     }
 
-    private ArrayList<DateTimeLapseID> mergeLapses(List<DateTimeLapseID> day, List<DateTimeLapse> lapses, String id, LapseOperation op) {
-        var returnList = day;
-        for (DateTimeLapse lapse : lapses) {
-            DateTimeLapseID newLapse = new DateTimeLapseID(lapse.getStart(), lapse.getEnd());
-            newLapse.getProfessionalID().add(id);
-            returnList = op.mergeDateTimeLapses((ArrayList<DateTimeLapseID>) returnList, newLapse);
-        }
-        return (ArrayList<DateTimeLapseID>) returnList;
+    private Mono<ArrayList<DateTimeLapseID>> mergeLapses(List<DateTimeLapseID> day, List<DateTimeLapse> lapses, String id, LapseOperation op) {
+        return professionalDAOImp.findById(id)
+                .map(professionalUser -> {
+                    var returnList = day;
+                    for (DateTimeLapse lapse : lapses) {
+                        DateTimeLapseID newLapse = new DateTimeLapseID(lapse.getStart(), lapse.getEnd());
+                        newLapse.getProfessionalID().add(new ProfesionalIDFormat(professionalUser));
+                        returnList = op.mergeDateTimeLapses((ArrayList<DateTimeLapseID>) returnList, newLapse);
+                    }
+                    return (ArrayList<DateTimeLapseID>) returnList;
+                });
     }
 }
