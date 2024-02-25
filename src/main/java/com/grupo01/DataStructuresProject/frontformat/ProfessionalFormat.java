@@ -2,10 +2,17 @@ package com.grupo01.DataStructuresProject.frontformat;
 
 import com.grupo01.DataStructuresProject.models.ProfessionalUser;
 import com.grupo01.DataStructuresProject.utils.Schedule;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
-public class ProfessionalFormat {
+@EqualsAndHashCode
+@NoArgsConstructor
+@AllArgsConstructor
+@Setter
+@Getter
+@ToString
+public class ProfessionalFormat implements JsonMasticadito{
     private String id;
     private String firstName;
     private String lastName;
@@ -14,8 +21,9 @@ public class ProfessionalFormat {
     private LocalDateTime registrationDate;
     private String idArea;
     private Schedule availableHours;
+
     // Constructor que acepta ProfessionalUser y completa los campos
-    public ProfessionalFormat(ProfessionalUser originalProfessional){
+    public ProfessionalFormat(ProfessionalUser originalProfessional) {
         this.id = originalProfessional.getId();
         this.firstName = originalProfessional.getFirstName();
         this.lastName = originalProfessional.getLastName();

@@ -1,6 +1,7 @@
 package com.grupo01.DataStructuresProject.controllers;
 
 import com.grupo01.DataStructuresProject.dao.PatientDAOImp;
+import com.grupo01.DataStructuresProject.frontformat.PatientFormat;
 import com.grupo01.DataStructuresProject.models.PatientUser;
 import com.grupo01.DataStructuresProject.service.IDGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,24 +23,24 @@ public class PatientController {
     }
 
     @GetMapping(value = "/findById/{id}")
-    public Mono<PatientUser> findById(@PathVariable String id) {
-        return patientDAOImp.findById(id);
+    public Mono<PatientFormat> findById(@PathVariable String id) {
+        return patientDAOImp.findById(id).map(PatientFormat::new);
     }
 
     @GetMapping(value = "/findByEmailAndPassword/{email}&{password}")
-    public Mono<PatientUser> findByEmailAndPassword(@PathVariable String email, @PathVariable String password) {
-        return patientDAOImp.findByEmailAndPassword(email, password);
+    public Mono<PatientFormat> findByEmailAndPassword(@PathVariable String email, @PathVariable String password) {
+        return patientDAOImp.findByEmailAndPassword(email, password).map(PatientFormat::new);
     }
 
     @PostMapping(value = "/save")
-    public Mono<PatientUser> save(@RequestBody PatientUser patient) {
+    public Mono<PatientFormat> save(@RequestBody PatientUser patient) {
         patient.setId(idGenerator.generatePatientID());
-        return patientDAOImp.save(patient);
+        return patientDAOImp.save(patient).map(PatientFormat::new);
     }
 
     @PutMapping(value = "/update")
-    public Mono<PatientUser> update(@RequestBody PatientUser patient) {
-        return patientDAOImp.update(patient);
+    public Mono<PatientFormat> update(@RequestBody PatientUser patient) {
+        return patientDAOImp.update(patient).map(PatientFormat::new);
     }
 
     @DeleteMapping(value = "/deleteById/{id}")

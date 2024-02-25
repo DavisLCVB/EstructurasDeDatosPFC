@@ -6,6 +6,7 @@ import com.grupo01.DataStructuresProject.dao.AreaDAOImp;
 import com.grupo01.DataStructuresProject.dao.ProfessionalDAOImp;
 import com.grupo01.DataStructuresProject.frontformat.DateTimeLapseID;
 import com.grupo01.DataStructuresProject.frontformat.ProfesionalIDFormat;
+import com.grupo01.DataStructuresProject.frontformat.ProfessionalFormat;
 import com.grupo01.DataStructuresProject.models.Area;
 import com.grupo01.DataStructuresProject.models.ProfessionalUser;
 import com.grupo01.DataStructuresProject.service.IDGenerator;
@@ -36,24 +37,24 @@ public class ProfessionalController {
     private IDGenerator idGenerator;
 
     @GetMapping(value = "/findAll")
-    public Flux<ProfessionalUser> findAll() {
-        return professionalDAOImp.findAll();
+    public Flux<ProfessionalFormat> findAll() {
+        return professionalDAOImp.findAll().map(ProfessionalFormat::new);
     }
 
     @GetMapping(value = "/findById/{idProfessional}")
-    public Mono<ProfessionalUser> findById(@PathVariable String idProfessional) {
-        return professionalDAOImp.findById(idProfessional);
+    public Mono<ProfessionalFormat> findById(@PathVariable String idProfessional) {
+        return professionalDAOImp.findById(idProfessional).map(ProfessionalFormat::new);
     }
 
     @PostMapping(value = "/save")
-    public Mono<ProfessionalUser> save(@RequestBody ProfessionalUser professional) {
+    public Mono<ProfessionalFormat> save(@RequestBody ProfessionalUser professional) {
         professional.setId(idGenerator.generateProfessionalID());
-        return professionalDAOImp.save(professional);
+        return professionalDAOImp.save(professional).map(ProfessionalFormat::new);
     }
 
     @PutMapping(value = "/update/{idProfessional}")
-    public Mono<ProfessionalUser> update(@PathVariable String idProfessional, @RequestBody ProfessionalUser professional) {
-        return professionalDAOImp.update(idProfessional, professional);
+    public Mono<ProfessionalFormat> update(@PathVariable String idProfessional, @RequestBody ProfessionalUser professional) {
+        return professionalDAOImp.update(idProfessional, professional).map(ProfessionalFormat::new);
     }
 
     public Mono<HashMap<String, ScheduleDate>> getAvailableScheduleProfessionals(@PathVariable String idArea, @RequestBody @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm") LocalDateTime lastMonday) {
