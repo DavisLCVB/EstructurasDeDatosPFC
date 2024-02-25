@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.grupo01.DataStructuresProject.dao.AppointmentDAOImp;
 import com.grupo01.DataStructuresProject.dao.AreaDAOImp;
 import com.grupo01.DataStructuresProject.dao.ProfessionalDAOImp;
+import com.grupo01.DataStructuresProject.frontformat.DateTimeLapseID;
 import com.grupo01.DataStructuresProject.models.ProfessionalUser;
 import com.grupo01.DataStructuresProject.service.IDGenerator;
 import com.grupo01.DataStructuresProject.utils.*;
@@ -14,10 +15,8 @@ import reactor.core.publisher.Mono;
 
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/professional")
@@ -52,7 +51,7 @@ public class ProfessionalController {
         return professionalDAOImp.update(idProfessional, professional);
     }
 
-    @GetMapping(value = "/getSchedule/{idArea}")
+    @GetMapping(value = "/getSchedule_1/{idArea}")
     public Mono<HashMap<String, ScheduleDate>> getAvailableScheduleProfessionals(@PathVariable String idArea, @RequestBody @JsonFormat(pattern = "yyyy-MM-ddTHH:mm") LocalDateTime lastMonday) {
         return professionalDAOImp.findAllByIdArea(idArea).flatMapSequential(p -> {
             ScheduleDate schedule = convertToScheduleDate(p.getAvailableHours(), lastMonday);
@@ -61,7 +60,7 @@ public class ProfessionalController {
                     .doOnNext(a -> {
                         var s = a.getDate().getStart();
                         var e = a.getDate().getEnd();
-                        var minutes = s.getHour()*60 + s.getMinute() - e.getHour()*60 - e.getMinute();
+                        var minutes = e.getHour() * 60 + e.getMinute() - s.getHour() * 60 - s.getMinute();
                         deleteLapse(schedule, a.getDate(), minutes);
                     })
                     .then(Mono.just(Map.entry(p.getId(), schedule)));
@@ -176,4 +175,29 @@ public class ProfessionalController {
                 break;
         }
     }
+
+//    @GetMapping(value = "/getSchedule_2/{idArea}")
+//    public Mono<Map<DateTimeLapse, List<String>>> getAvailableTimesByProfessionals(@PathVariable String idArea, @RequestBody @JsonFormat(pattern = "yyyy-MM-ddTHH:mm") LocalDateTime lastMonday) {
+//        return getAvailableScheduleProfessionals(idArea, lastMonday)
+//                .flatMapMany(map -> Flux.fromIterable(map.entrySet()))
+//                .flatMap(entry -> Flux.fromIterable(extractDateTimeLapses(entry.getValue()))
+//                        .map(lapse -> new AbstractMap.SimpleEntry<>(lapse, entry.getKey())))
+//                .groupBy(Map.Entry::getKey)
+//                .flatMap(group -> group.collectList()
+//                        .map(list -> new AbstractMap.SimpleEntry<>(group.key(), list.stream()
+//                                .map(Map.Entry::getValue)
+//                                .collect(Collectors.toList()))))
+//                .collectMap(Map.Entry::getKey, Map.Entry::getValue);
+//    }
+//
+//    @GetMapping(value = "/getSchedule_3/{idArea}")
+//    public Mono<HashMap<String, List<DateTimeLapseID>>> getAvailable(@PathVariable String idArea, @RequestBody @JsonFormat(pattern = "yyyy-MM-ddTHH:mm") LocalDateTime lastMonday) {
+//        List<DateTimeLapseID> monday = new ArrayList<>();
+//        List<DateTimeLapseID> tuesday = new ArrayList<>();
+//        List<DateTimeLapseID> wednesday = new ArrayList<>();
+//        List<DateTimeLapseID> thursday = new ArrayList<>();
+//        List<DateTimeLapseID> friday = new ArrayList<>();
+//        List<DateTimeLapseID> saturday = new ArrayList<>();
+//        List<DateTimeLapseID> sunday = new ArrayList<>();
+//    }
 }
