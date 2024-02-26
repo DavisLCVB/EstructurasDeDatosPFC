@@ -1,5 +1,6 @@
 package com.grupo01.DataStructuresProject.frontformat;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.grupo01.DataStructuresProject.models.PatientUser;
 import lombok.*;
 
@@ -17,6 +18,7 @@ public class PatientFormat implements JsonMasticadito{
     private String lastName;
     private String email;
     private String password;
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm")
     private LocalDateTime registrationDate;
 
     // Constructor que acepta PatientUser y completa los campos

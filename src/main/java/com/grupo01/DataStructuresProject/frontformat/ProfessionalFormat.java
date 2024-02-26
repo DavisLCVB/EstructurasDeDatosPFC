@@ -19,7 +19,7 @@ public class ProfessionalFormat implements JsonMasticadito{
     private String lastName;
     private String email;
     private String password;
-    @JsonFormat(pattern = "HH:mm")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm")
     private LocalDateTime registrationDate;
     private String idArea;
     private Schedule availableHours;
