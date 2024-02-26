@@ -13,6 +13,7 @@ import com.grupo01.DataStructuresProject.service.IDGenerator;
 import com.grupo01.DataStructuresProject.service.LapseOperation;
 import com.grupo01.DataStructuresProject.utils.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -36,6 +37,10 @@ public class ProfessionalController {
     @Autowired
     private IDGenerator idGenerator;
 
+    @GetMapping(value = "/getId")
+    public String getID(){
+        return idGenerator.generateAppointmentID();
+    }
     @GetMapping(value = "/findAll")
     public Flux<ProfessionalFormat> findAll() {
         return professionalDAOImp.findAll().map(ProfessionalFormat::new);
@@ -57,16 +62,16 @@ public class ProfessionalController {
         return professionalDAOImp.update(idProfessional, professional).map(ProfessionalFormat::new);
     }
 
-    public Mono<HashMap<String, ScheduleDate>> getAvailableScheduleProfessionals(@PathVariable String idArea, @RequestBody @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm") LocalDateTime lastMonday) {
+    public Mono<HashMap<String, ScheduleDate>> getAvailableScheduleProfessionals(@PathVariable String idArea, @RequestBody @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm") LocalDateTime lastSunday) {
         return professionalDAOImp.findAllByIdArea(idArea)
                 .flatMapSequential(p -> {
                     Mono<Area> areaMono = areaDAOImp.findById(idArea);
 
                     return areaMono.flatMap(area -> {
-                        ScheduleDate schedule = convertToScheduleDate(p.getAvailableHours(), lastMonday);
+                        ScheduleDate schedule = convertToScheduleDate(p.getAvailableHours(), lastSunday);
                         return appointmentDAOImp.findAllByIdProfessional(p.getId())
                                 .filter(a -> a.getStatus().equals(AppointmentStatus.PENDING))
-                                .filter(a -> a.getDate().getStart().isAfter(lastMonday))
+                                .filter(a -> a.getDate().getStart().isAfter(lastSunday) && a.getDate().getStart().isBefore(lastSunday.plusDays(7)))
                                 .doOnNext(a -> {
                                     var minutes = (area.getDuration().getHour() * 60) + area.getDuration().getMinute();
                                     deleteLapse(schedule, a.getDate(), minutes);
@@ -77,10 +82,10 @@ public class ProfessionalController {
                 .collect(HashMap::new, (map, mapEntry) -> map.put(mapEntry.getKey(), mapEntry.getValue()));
     }
 
-    private ScheduleDate convertToScheduleDate(Schedule schedule, LocalDateTime monday) {
+    private ScheduleDate convertToScheduleDate(Schedule schedule, LocalDateTime sunday) {
         var returnSchedule = new ScheduleDate();
         for (int i = 0; i < 7; i++) {
-            var day = monday.plusDays(i);
+            var day = sunday.plusDays(i);
             var dayOfWeek = day.getDayOfWeek();
             var daySchedule = new ArrayList<DateTimeLapse>();
             List<TimeLapse> dayLapses = (List<TimeLapse>) getLapsesOfDay(schedule, dayOfWeek);
@@ -187,8 +192,8 @@ public class ProfessionalController {
     }
 
     @GetMapping(value = "/getSchedule/{idArea}")
-    public Mono<HashMap<String, List<DateTimeLapseID>>> getAvailable(@PathVariable String idArea, @RequestBody @JsonFormat(pattern = "yyyy-MM-ddTHH:mm") LocalDateTime lastMonday) {
-        return getAvailableScheduleProfessionals(idArea, lastMonday)
+    public Mono<HashMap<String, List<DateTimeLapseID>>> getAvailable(@PathVariable String idArea, @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime lastSunday) {
+        return getAvailableScheduleProfessionals(idArea, lastSunday)
                 .flatMap(map -> {
                     var lists = new HashMap<String, List<DateTimeLapseID>>();
                     lists.put("monday", new ArrayList<>());

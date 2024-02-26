@@ -17,6 +17,10 @@ public class AreaController {
     @Autowired
     private IDGenerator idGenerator;
 
+    @GetMapping(value = "/getId")
+    public String getID(){
+        return idGenerator.generateAppointmentID();
+    }
     @GetMapping(value = "/findAll")
     public Flux<AreaFormat> findAll() {
         return areaDAOImp.findAll().map(AreaFormat::new);

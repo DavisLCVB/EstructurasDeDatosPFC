@@ -1,5 +1,6 @@
 package com.grupo01.DataStructuresProject.frontformat;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.grupo01.DataStructuresProject.models.Appointment;
 import com.grupo01.DataStructuresProject.utils.AppointmentStatus;
 import com.grupo01.DataStructuresProject.utils.DateTimeLapse;
@@ -21,6 +22,7 @@ public class AppointmentFormat implements JsonMasticadito{
     private String professionalFullName;
     private String areaId;
     private String areaName;
+    @JsonFormat(pattern = "HH:mm")
     private LocalTime areaDuration;
     private DateTimeLapse date;
     private AppointmentStatus Status;

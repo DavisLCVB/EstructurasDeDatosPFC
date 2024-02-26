@@ -1,5 +1,6 @@
 package com.grupo01.DataStructuresProject.frontformat;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.grupo01.DataStructuresProject.models.ProfessionalUser;
 import com.grupo01.DataStructuresProject.utils.Schedule;
 import lombok.*;
@@ -18,6 +19,7 @@ public class ProfessionalFormat implements JsonMasticadito{
     private String lastName;
     private String email;
     private String password;
+    @JsonFormat(pattern = "HH:mm")
     private LocalDateTime registrationDate;
     private String idArea;
     private Schedule availableHours;

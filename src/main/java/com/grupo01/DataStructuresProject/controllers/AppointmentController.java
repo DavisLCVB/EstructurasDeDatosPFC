@@ -29,7 +29,7 @@ public class AppointmentController {
 
     @GetMapping(value = "/findAll/{idPatient}")
     public Flux<AppointmentFormat> findAll(@PathVariable String idPatient) {
-        return appointmentDAOImp.findAll().flatMap(e -> {
+        return appointmentDAOImp.findAllByIdPatient(idPatient).flatMap(e -> {
             String idProfessional = e.getIdProfessional();
             String idArea = e.getIdArea();
             return areaDAOImp.findById(idArea)
@@ -38,6 +38,11 @@ public class AppointmentController {
                                     .map(patient -> new AppointmentFormat(e, patient.getFirstName(), patient.getLastName(), professional.getFirstName(), professional.getLastName(), area.getName(), area.getDuration()))
                             ));
         });
+    }
+
+    @GetMapping(value = "/getId")
+    public String getID(){
+        return idGenerator.generateAppointmentID();
     }
 
     @GetMapping(value = "/find/{id}")
@@ -58,6 +63,21 @@ public class AppointmentController {
     @PostMapping(value = "/save")
     public Mono<AppointmentFormat> save(@RequestBody Appointment appointment) {
         appointment.setId(idGenerator.generateAppointmentID());
+        return appointmentDAOImp.save(appointment)
+                .flatMap(e -> {
+                    String idPatient = e.getIdPatient();
+                    String idProfessional = e.getIdProfessional();
+                    String idArea = e.getIdArea();
+                    return areaDAOImp.findById(idArea)
+                            .flatMap(area -> professionalDAOImp.findById(idProfessional)
+                                    .flatMap(professional -> patientDAOImp.findById(idPatient)
+                                            .map(patient -> new AppointmentFormat(e, patient.getFirstName(), patient.getLastName(), professional.getFirstName(), professional.getLastName(), area.getName(), area.getDuration()))
+                                    ));
+                });
+    }
+
+    @PostMapping(value = "/saveWId")
+    public Mono<AppointmentFormat> saveWId(@RequestBody Appointment appointment) {
         return appointmentDAOImp.save(appointment)
                 .flatMap(e -> {
                     String idPatient = e.getIdPatient();

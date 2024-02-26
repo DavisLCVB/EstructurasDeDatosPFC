@@ -22,6 +22,10 @@ public class PatientController {
         return patientDAOImp.findAll();
     }
 
+    @GetMapping(value = "/getId")
+    public String getID(){
+        return idGenerator.generateAppointmentID();
+    }
     @GetMapping(value = "/findById/{id}")
     public Mono<PatientFormat> findById(@PathVariable String id) {
         return patientDAOImp.findById(id).map(PatientFormat::new);
