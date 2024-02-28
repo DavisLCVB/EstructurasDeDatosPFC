@@ -1,10 +1,17 @@
 package com.grupo01.DataStructuresProject.datastructures.hashmap;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.grupo01.DataStructuresProject.datastructures.linkedlist.LinkedList;
+import com.grupo01.DataStructuresProject.service.HashMapSerializer;
+import lombok.Getter;
+import lombok.ToString;
 
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
+@ToString
+@Getter
+@JsonSerialize(using = HashMapSerializer.class)
 public class HashMap<Key, Value> {
     private LinkedList<Entry<Key, Value>>[] table;
     private int capacity = 11;
@@ -13,17 +20,26 @@ public class HashMap<Key, Value> {
 
     public HashMap() {
         table = new LinkedList[capacity];
+        for(int i = 0; i < capacity; i++) {
+            table[i] = new LinkedList<>();
+        }
     }
 
     public HashMap(int capacity) {
         this.capacity = capacity;
         table = new LinkedList[capacity];
+        for(int i = 0; i < capacity; i++) {
+            table[i] = new LinkedList<>();
+        }
     }
 
     public HashMap(int capacity, double loadFactor) {
         this.capacity = capacity;
         this.loadFactor = loadFactor;
         table = new LinkedList[capacity];
+        for(int i = 0; i < capacity; i++) {
+            table[i] = new LinkedList<>();
+        }
     }
 
     private void checkSize() {

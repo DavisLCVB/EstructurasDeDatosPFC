@@ -1,9 +1,12 @@
 package com.grupo01.DataStructuresProject.controllers;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.grupo01.DataStructuresProject.dao.AppointmentDAOImp;
 import com.grupo01.DataStructuresProject.dao.AreaDAOImp;
 import com.grupo01.DataStructuresProject.dao.ProfessionalDAOImp;
+import com.grupo01.DataStructuresProject.datastructures.hashmap.Entry;
 import com.grupo01.DataStructuresProject.datastructures.hashmap.HashMap;
 import com.grupo01.DataStructuresProject.frontformat.DateTimeLapseID;
 import com.grupo01.DataStructuresProject.frontformat.ProfesionalIDFormat;
@@ -14,7 +17,6 @@ import com.grupo01.DataStructuresProject.service.IDGenerator;
 import com.grupo01.DataStructuresProject.service.LapseOperation;
 import com.grupo01.DataStructuresProject.utils.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -23,7 +25,6 @@ import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/professional")
@@ -38,9 +39,10 @@ public class ProfessionalController {
     private IDGenerator idGenerator;
 
     @GetMapping(value = "/getId")
-    public String getID(){
+    public String getID() {
         return idGenerator.generateAppointmentID();
     }
+
     @GetMapping(value = "/findAll")
     public Flux<ProfessionalFormat> findAll() {
         return professionalDAOImp.findAll().map(ProfessionalFormat::new);
@@ -63,10 +65,10 @@ public class ProfessionalController {
     }
 
     public Mono<HashMap<String, ScheduleDate>> getAvailableScheduleProfessionals(@PathVariable String idArea, @RequestBody @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm") LocalDateTime lastSunday) {
-        return professionalDAOImp.findAllByIdArea(idArea)
+        var xd = professionalDAOImp.findAllByIdArea(idArea);
+        return xd
                 .flatMapSequential(p -> {
                     Mono<Area> areaMono = areaDAOImp.findById(idArea);
-
                     return areaMono.flatMap(area -> {
                         ScheduleDate schedule = convertToScheduleDate(p.getAvailableHours(), lastSunday);
                         return appointmentDAOImp.findAllByIdProfessional(p.getId())
@@ -76,7 +78,7 @@ public class ProfessionalController {
                                     var minutes = (area.getDuration().getHour() * 60) + area.getDuration().getMinute();
                                     deleteLapse(schedule, a.getDate(), minutes);
                                 })
-                                .then(Mono.just(Map.entry(p.getId(), schedule)));
+                                .then(Mono.just(new Entry<String, ScheduleDate>(p.getId(), schedule)));
                     });
                 })
                 .collect(HashMap::new, (map, mapEntry) -> map.put(mapEntry.getKey(), mapEntry.getValue()));
@@ -89,6 +91,7 @@ public class ProfessionalController {
             var dayOfWeek = day.getDayOfWeek();
             var daySchedule = new ArrayList<DateTimeLapse>();
             List<TimeLapse> dayLapses = (List<TimeLapse>) getLapsesOfDay(schedule, dayOfWeek);
+            if (dayLapses == null) continue;
             for (var lapse : dayLapses) {
                 var start = LocalDateTime.of(day.toLocalDate(), lapse.getStart());
                 var end = LocalDateTime.of(day.toLocalDate(), lapse.getEnd());
@@ -192,7 +195,7 @@ public class ProfessionalController {
     }
 
     @GetMapping(value = "/getSchedule/{idArea}")
-    public Mono<HashMap<String, List<DateTimeLapseID>>> getAvailable(@PathVariable String idArea, @RequestBody @JsonFormat(pattern = "yyyy-MM-ddTHH:mm") LocalDateTime lastSunday) {
+    public Mono<String> getAvailable(@PathVariable String idArea, @RequestBody @JsonFormat(pattern = "yyyy-MM-ddTHH:mm") LocalDateTime lastSunday) {
         return getAvailableScheduleProfessionals(idArea, lastSunday)
                 .flatMap(map -> {
                     var lists = new HashMap<String, List<DateTimeLapseID>>();
@@ -214,13 +217,38 @@ public class ProfessionalController {
                         mergeOperations.add(mergeLapses(lists.get("saturday"), schedule.getSaturday(), id, op).doOnNext(list -> lists.put("saturday", list)).then());
                         mergeOperations.add(mergeLapses(lists.get("sunday"), schedule.getSunday(), id, op).doOnNext(list -> lists.put("sunday", list)).then());
                     });
-                    return Mono.when(mergeOperations).thenReturn(lists);
+                    var listr = new StringContainer("pipipipi");
+                    System.out.println(listr);
+                    return Mono.when(mergeOperations).then(HashToJson(lists, listr))
+                            .thenReturn(listr.getString());
                 });
+    }
+
+    private Mono<Void> HashToJson(HashMap<?, ?> map, StringContainer listr) {
+        System.out.println(map);
+        try {
+            var list = new ObjectMapper();
+            listr.setString(list.writeValueAsString(map));
+            System.out.println(listr);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+        return Mono.empty();
     }
 
     private Mono<ArrayList<DateTimeLapseID>> mergeLapses(List<DateTimeLapseID> day, List<DateTimeLapse> lapses, String id, LapseOperation op) {
         return professionalDAOImp.findById(id)
                 .map(professionalUser -> {
+                    if (day == null) {
+                        var list = new ArrayList<DateTimeLapseID>();
+                        for (DateTimeLapse lapse : lapses) {
+                            DateTimeLapseID newLapse = new DateTimeLapseID(lapse.getStart(), lapse.getEnd());
+                            newLapse.getProfessionalID().add(new ProfesionalIDFormat(professionalUser));
+                            list.add(newLapse);
+                        }
+                    }
+                    if (lapses == null)
+                        return (ArrayList<DateTimeLapseID>) day;
                     var returnList = day;
                     for (DateTimeLapse lapse : lapses) {
                         DateTimeLapseID newLapse = new DateTimeLapseID(lapse.getStart(), lapse.getEnd());
