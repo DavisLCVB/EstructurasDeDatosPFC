@@ -192,7 +192,7 @@ public class ProfessionalController {
     }
 
     @GetMapping(value = "/getSchedule/{idArea}")
-    public Mono<HashMap<String, List<DateTimeLapseID>>> getAvailable(@PathVariable String idArea, @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime lastSunday) {
+    public Mono<HashMap<String, List<DateTimeLapseID>>> getAvailable(@PathVariable String idArea, @RequestBody @JsonFormat(pattern = "yyyy-MM-ddTHH:mm") LocalDateTime lastSunday) {
         return getAvailableScheduleProfessionals(idArea, lastSunday)
                 .flatMap(map -> {
                     var lists = new HashMap<String, List<DateTimeLapseID>>();
