@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.grupo01.DataStructuresProject.dao.AppointmentDAOImp;
 import com.grupo01.DataStructuresProject.dao.AreaDAOImp;
 import com.grupo01.DataStructuresProject.dao.ProfessionalDAOImp;
+import com.grupo01.DataStructuresProject.datastructures.hashmap.HashMap;
 import com.grupo01.DataStructuresProject.frontformat.DateTimeLapseID;
 import com.grupo01.DataStructuresProject.frontformat.ProfesionalIDFormat;
 import com.grupo01.DataStructuresProject.frontformat.ProfessionalFormat;
@@ -21,7 +22,6 @@ import reactor.core.publisher.Mono;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 

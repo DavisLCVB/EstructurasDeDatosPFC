@@ -3,6 +3,7 @@ package com.grupo01.DataStructuresProject.datastructures.hashmap;
 import com.grupo01.DataStructuresProject.datastructures.linkedlist.LinkedList;
 
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 
 public class HashMap<Key, Value> {
     private LinkedList<Entry<Key, Value>>[] table;
@@ -150,6 +151,14 @@ public class HashMap<Key, Value> {
             }
         }
         return keys;
+    }
+
+    public void forEach(BiConsumer<? super Key, ? super Value> action) {
+        for (var list : table) {
+            if (list != null) {
+                list.forEach(entry -> action.accept(entry.getKey(), entry.getValue()));
+            }
+        }
     }
 
 }
